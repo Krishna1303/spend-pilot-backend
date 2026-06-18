@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -58,6 +59,9 @@ app.use(compression());
 // --- Observability: log every request with IP + response timer ---
 app.use(requestLogger);
 
+// --- Landing/status page + static assets (served at /) ---
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
 // --- Health (no rate limit so monitors aren't throttled) ---
 app.use('/api/health', healthRoutes);
 
@@ -78,9 +82,7 @@ app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get('/', (req, res) => {
-  res.json({ ok: true, service: 'SpendPilot API', docs: '/api/health' });
-});
+// `/` is served by the static landing page (public/index.html) above.
 
 // --- 404 + error handling (must be last) ---
 app.use(notFound);

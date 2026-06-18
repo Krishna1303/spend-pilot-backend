@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpendPilot API</title>
+  <meta name="description" content="SpendPilot API status" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563EB'/%3E%3Cpath d='M9 20c2.5-9 11.5-9 14 0' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='14' r='2.2' fill='white'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#2563EB" />
+        <path d="M9 20c2.5-9 11.5-9 14 0" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" />
+        <circle cx="16" cy="14" r="2.2" fill="#fff" />
+      </svg>
+      <span class="wordmark">Spend<span class="accent">Pilot</span></span>
+    </div>
+
+    <h1 id="headline">SpendPilot API is running</h1>
+    <p class="tagline">Smart credit-card payment optimizer &mdash; backend service.</p>
+
+    <div id="statusPill" class="pill pill--loading">
+      <span class="dot"></span><span id="statusText">Checking status&hellip;</span>
+    </div>
+
+    <div class="grid">
+      <div class="stat">
+        <span class="stat__label">Environment</span>
+        <span class="stat__value" id="env">&mdash;</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Uptime</span>
+        <span class="stat__value" id="uptime">&mdash;</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Database</span>
+        <span class="stat__value"><span class="dep" id="dep-db">&mdash;</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">AI</span>
+        <span class="stat__value"><span class="dep" id="dep-ai">&mdash;</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Plaid</span>
+        <span class="stat__value"><span class="dep" id="dep-plaid">&mdash;</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Memory</span>
+        <span class="stat__value" id="mem">&mdash;</span>
+      </div>
+    </div>
+
+    <nav class="links">
+      <a href="/api/health">Health</a>
+      <a href="/api/help">Help</a>
+      <a href="/api/legal/terms">Terms</a>
+      <a href="/api/legal/privacy">Privacy</a>
+    </nav>
+
+    <footer class="foot">
+      <span id="service">SpendPilot API</span>
+      <span class="sep">&middot;</span>
+      <span id="ts">&mdash;</span>
+    </footer>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
