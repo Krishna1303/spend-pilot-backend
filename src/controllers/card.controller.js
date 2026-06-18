@@ -1,0 +1,55 @@
+'use strict';
+
+const asyncHandler = require('../utils/asyncHandler');
+const ApiError = require('../utils/ApiError');
+const Card = require('../models/Card');
+
+const EDITABLE_FIELDS = [
+  'source', 'bankName', 'cardName', 'last4', 'balance', 'statementBalance',
+  'minimumPayment', 'dueDate', 'apr', 'creditLimit',
+];
+
+function pickFields(body) {
+  const out = {};
+  for (const field of EDITABLE_FIELDS) {
+    if (body[field] !== undefined) out[field] = body[field];
+  }
+  return out;
+}
+
+/** GET /api/cards */
+const listCards = asyncHandler(async (req, res) => {
+  const cards = await Card.find({ userId: req.user.id }).sort({ createdAt: -1 });
+  res.json({ cards });
+});
+
+/** POST /api/cards */
+const createCard = asyncHandler(async (req, res) => {
+  const card = await Card.create({ ...pickFields(req.body), userId: req.user.id });
+  res.status(201).json({ card });
+});
+
+/** GET /api/cards/:id */
+const getCard = asyncHandler(async (req, res) => {
+  const card = await Card.findOne({ _id: req.params.id, userId: req.user.id });
+  if (!card) throw ApiError.notFound('Card not found');
+  res.json({ card });
+});
+
+/** PATCH /api/cards/:id */
+const updateCard = asyncHandler(async (req, res) => {
+  const card = await Card.findOne({ _id: req.params.id, userId: req.user.id });
+  if (!card) throw ApiError.notFound('Card not found');
+  Object.assign(card, pickFields(req.body));
+  await card.save();
+  res.json({ card });
+});
+
+/** DELETE /api/cards/:id */
+const deleteCard = asyncHandler(async (req, res) => {
+  const card = await Card.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
+  if (!card) throw ApiError.notFound('Card not found');
+  res.json({ deleted: true, id: req.params.id });
+});
+
+module.exports = { listCards, createCard, getCard, updateCard, deleteCard };
