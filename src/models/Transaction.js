@@ -13,6 +13,8 @@ const transactionSchema = new mongoose.Schema(
     category: { type: String, trim: true },
     date: { type: Date, required: true },
     source: { type: String, enum: ['plaid', 'sample', 'manual'], default: 'sample' },
+    // Drives the dashboard "spending vs earning" split and payday detection.
+    type: { type: String, enum: ['income', 'expense'], default: 'expense', index: true },
   },
   { timestamps: true }
 );

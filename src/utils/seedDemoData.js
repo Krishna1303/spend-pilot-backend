@@ -55,12 +55,21 @@ async function seedDemoData() {
 
   const existingTx = await Transaction.countDocuments({ userId: demo.id });
   if (existingTx === 0) {
+    const daysAgo = (n) => new Date(Date.now() - n * 86400000);
     await Transaction.create([
-      { userId: demo.id, amount: 54.23, merchant: 'Whole Foods', category: 'Groceries', date: new Date(), source: 'sample' },
-      { userId: demo.id, amount: 12.99, merchant: 'Netflix', category: 'Subscription', date: new Date(), source: 'sample' },
-      { userId: demo.id, amount: 88.4, merchant: 'Shell', category: 'Gas', date: new Date(), source: 'sample' },
+      // This month — expenses across categories (for the categorized graph).
+      { userId: demo.id, amount: 54.23, merchant: 'Whole Foods', category: 'Groceries', date: daysAgo(2), source: 'sample', type: 'expense' },
+      { userId: demo.id, amount: 12.99, merchant: 'Netflix', category: 'Subscription', date: daysAgo(4), source: 'sample', type: 'expense' },
+      { userId: demo.id, amount: 88.4, merchant: 'Shell', category: 'Gas', date: daysAgo(6), source: 'sample', type: 'expense' },
+      { userId: demo.id, amount: 130.0, merchant: 'Amazon', category: 'Shopping', date: daysAgo(9), source: 'sample', type: 'expense' },
+      // Income — two recent paychecks so payday cadence + the graph have data.
+      { userId: demo.id, amount: 2600.0, merchant: 'Employer Payroll', category: 'Payroll', date: daysAgo(12), source: 'sample', type: 'income' },
+      { userId: demo.id, amount: 2600.0, merchant: 'Employer Payroll', category: 'Payroll', date: daysAgo(26), source: 'sample', type: 'income' },
+      // Last month — a couple of expenses so spending-vs-earning spans >1 month.
+      { userId: demo.id, amount: 240.0, merchant: 'Costco', category: 'Groceries', date: daysAgo(38), source: 'sample', type: 'expense' },
+      { userId: demo.id, amount: 60.0, merchant: 'Uber', category: 'Transport', date: daysAgo(40), source: 'sample', type: 'expense' },
     ]);
-    logger.info('Seeded demo transactions', { count: 3 });
+    logger.info('Seeded demo transactions', { count: 8 });
   }
 
   const existingTickets = await SupportTicket.countDocuments({ userId: demo.id });
