@@ -13,9 +13,66 @@ const { toISODate } = require('../utils/dates');
  * pdf.js is ESM; we import it lazily via dynamic import() from CommonJS and
  * cache the module promise.
  */
+/**
+ * pdf.js reads a few browser globals (DOMMatrix, Path2D, ImageData) for text
+ * positioning. In Node those come from @napi-rs/canvas (a native binary) — but
+ * that binary often isn't bundled into serverless functions, which makes text
+ * extraction throw "DOMMatrix is not defined". We install functional pure-JS
+ * polyfills BEFORE importing pdf.js so extraction works without any native
+ * canvas. DOMMatrix implements real matrix math (used for text transforms);
+ * Path2D/ImageData are stubs (only needed for rendering, which we never do).
+ */
+function installDomPolyfills() {
+  const g = globalThis;
+  if (typeof g.DOMMatrix === 'undefined') {
+    g.DOMMatrix = class DOMMatrix {
+      constructor(init) {
+        this.a = 1; this.b = 0; this.c = 0; this.d = 1; this.e = 0; this.f = 0;
+        if (Array.isArray(init) && init.length >= 6) {
+          [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+        }
+      }
+      multiply(o) {
+        const r = new DOMMatrix();
+        r.a = this.a * o.a + this.c * o.b;
+        r.b = this.b * o.a + this.d * o.b;
+        r.c = this.a * o.c + this.c * o.d;
+        r.d = this.b * o.c + this.d * o.d;
+        r.e = this.a * o.e + this.c * o.f + this.e;
+        r.f = this.b * o.e + this.d * o.f + this.f;
+        return r;
+      }
+      translate(x, y) { return this.multiply(new DOMMatrix([1, 0, 0, 1, x || 0, y || 0])); }
+      scale(x, y) { return this.multiply(new DOMMatrix([x || 1, 0, 0, (y == null ? x : y) || 1, 0, 0])); }
+      inverse() {
+        const det = this.a * this.d - this.b * this.c || 1;
+        return new DOMMatrix([
+          this.d / det, -this.b / det, -this.c / det, this.a / det,
+          (this.c * this.f - this.d * this.e) / det, (this.b * this.e - this.a * this.f) / det,
+        ]);
+      }
+    };
+  }
+  if (typeof g.Path2D === 'undefined') {
+    g.Path2D = class Path2D {
+      addPath() {} moveTo() {} lineTo() {} bezierCurveTo() {}
+      quadraticCurveTo() {} arc() {} closePath() {} rect() {}
+    };
+  }
+  if (typeof g.ImageData === 'undefined') {
+    g.ImageData = class ImageData {
+      constructor(width, height) {
+        this.width = width; this.height = height;
+        this.data = new Uint8ClampedArray((width * height || 0) * 4);
+      }
+    };
+  }
+}
+
 let pdfjsPromise = null;
 function loadPdfjs() {
   if (!pdfjsPromise) {
+    installDomPolyfills();
     pdfjsPromise = import('pdfjs-dist/legacy/build/pdf.mjs');
   }
   return pdfjsPromise;

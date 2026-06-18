@@ -5,6 +5,7 @@ const ApiError = require('../utils/ApiError');
 const Card = require('../models/Card');
 const OptimizerRecommendation = require('../models/OptimizerRecommendation');
 const { optimizePayments } = require('../services/optimizer.service');
+const { buildRescuePlan } = require('../services/rescue.service');
 
 /**
  * POST /api/optimizer/recommend
@@ -47,4 +48,32 @@ const recommend = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { recommend };
+/**
+ * POST /api/optimizer/rescue
+ * Body: { paycheckDate, paycheckAmount, cashBuffer?, currentCash?, lateFeePerCard?, cards? }
+ * Produces a date-by-date Payday Rescue Plan. Uses the user's stored credit
+ * cards when `cards` is omitted.
+ */
+const rescue = asyncHandler(async (req, res) => {
+  const { paycheckDate, paycheckAmount, cashBuffer, currentCash, lateFeePerCard } = req.body;
+  let cards = req.body.cards;
+
+  if (!Array.isArray(cards) || cards.length === 0) {
+    cards = await Card.find({ userId: req.user.id, cardType: 'credit' });
+  }
+  if (!cards || cards.length === 0) {
+    throw ApiError.badRequest('No credit cards available. Add a credit card first.');
+  }
+
+  const plan = buildRescuePlan(cards, {
+    paycheckDate,
+    paycheckAmount,
+    cashBuffer,
+    currentCash,
+    lateFeePerCard,
+  });
+
+  res.json(plan);
+});
+
+module.exports = { recommend, rescue };
