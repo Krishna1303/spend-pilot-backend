@@ -16,6 +16,7 @@ const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
 const profileRoutes = require('./routes/profile.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const contentRoutes = require('./routes/content.routes');
 const cardRoutes = require('./routes/card.routes');
 const statementRoutes = require('./routes/statement.routes');
 const optimizerRoutes = require('./routes/optimizer.routes');
@@ -67,6 +68,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api', contentRoutes); // /api/legal/terms, /api/legal/privacy, /api/help
 app.use('/api/cards', cardRoutes);
 app.use('/api/statements', statementRoutes);
 app.use('/api/optimizer', optimizerRoutes);
