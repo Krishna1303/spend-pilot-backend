@@ -16,6 +16,8 @@ router.patch(
     name: { type: 'string', max: 120 },
     mobile: { type: 'string', max: 30 },
     profileImageUrl: { type: 'string', max: 500 },
+    email: { type: 'email' },
+    subscriptionPlan: { type: 'string', max: 20 },
   }),
   updateProfile
 );

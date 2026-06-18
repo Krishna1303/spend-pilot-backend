@@ -14,12 +14,26 @@ const getProfile = asyncHandler(async (req, res) => {
   res.json({ user: req.user.toPublicJSON() });
 });
 
-/** PATCH /api/profile */
+/** PATCH /api/profile — update name, mobile, photo, email, or subscription. */
 const updateProfile = asyncHandler(async (req, res) => {
-  const { name, mobile, profileImageUrl } = req.body;
+  const { name, mobile, profileImageUrl, email, subscriptionPlan } = req.body;
+
   if (name !== undefined) req.user.name = name;
   if (mobile !== undefined) req.user.mobile = mobile;
   if (profileImageUrl !== undefined) req.user.profileImageUrl = profileImageUrl;
+  // Invalid subscriptionPlan values are rejected by the schema enum (-> 400).
+  if (subscriptionPlan !== undefined) req.user.subscriptionPlan = subscriptionPlan;
+
+  // Email change: normalize and guard uniqueness against other accounts.
+  if (email !== undefined) {
+    const normalized = String(email).toLowerCase().trim();
+    if (normalized !== req.user.email) {
+      const taken = await User.findOne({ email: normalized, _id: { $ne: req.user.id } });
+      if (taken) throw ApiError.conflict('An account with that email already exists');
+      req.user.email = normalized;
+    }
+  }
+
   await req.user.save();
   res.json({ user: req.user.toPublicJSON() });
 });
