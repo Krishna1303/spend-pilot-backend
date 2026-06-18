@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema(
     plaidAccessToken: { type: String, select: false },
     plaidItemId: { type: String, select: false },
 
+    // CRM TOTP second factor. Secret is AES-GCM encrypted at rest.
+    totpSecret: { type: String, select: false },
+    totpEnabled: { type: Boolean, default: false },
+
     lastLoginAt: { type: Date },
     lastLoginIp: { type: String },
   },
@@ -63,6 +67,7 @@ userSchema.set('toJSON', {
     delete ret.passwordHash;
     delete ret.plaidAccessToken;
     delete ret.plaidItemId;
+    delete ret.totpSecret;
     delete ret._id;
     delete ret.__v;
     return ret;

@@ -58,6 +58,12 @@ const env = {
   // Demo seeding
   SEED_DEMO_DATA: bool(process.env.SEED_DEMO_DATA, false),
 
+  // CRM TOTP (authenticator) second factor
+  CRM_TOTP_REQUIRED: bool(process.env.CRM_TOTP_REQUIRED, true),
+  TOTP_ISSUER: process.env.TOTP_ISSUER || 'SpendPilot',
+  TOTP_ENCRYPTION_KEY: process.env.TOTP_ENCRYPTION_KEY || '', // falls back to JWT_SECRET-derived key
+  CRM_TOKEN_EXPIRES_IN: process.env.CRM_TOKEN_EXPIRES_IN || '15m',
+
   // Email / support escalation
   MAIL_ENABLED: bool(process.env.MAIL_ENABLED, false),
   SMTP_HOST: process.env.SMTP_HOST || '',
