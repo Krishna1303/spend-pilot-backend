@@ -58,6 +58,11 @@ const env = {
   // Demo seeding
   SEED_DEMO_DATA: bool(process.env.SEED_DEMO_DATA, false),
 
+  // Daily card usage sync
+  CARD_SYNC_ENABLED: bool(process.env.CARD_SYNC_ENABLED, true),
+  CARD_SYNC_HOUR: int(process.env.CARD_SYNC_HOUR, 3), // local hour of day to run
+  CARD_SYNC_MIN_INTERVAL_HOURS: int(process.env.CARD_SYNC_MIN_INTERVAL_HOURS, 20), // idempotency guard
+
   isProduction: (process.env.NODE_ENV || 'development') === 'production',
 };
 

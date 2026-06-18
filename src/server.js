@@ -4,6 +4,7 @@ const { env, validateEnv } = require('./config/env');
 const logger = require('./config/logger');
 const connectDB = require('./config/db');
 const seedDemoData = require('./utils/seedDemoData');
+const { startCardSyncScheduler } = require('./jobs/dailyCardSync');
 
 let server;
 
@@ -20,6 +21,9 @@ async function start() {
       logger.warn('Demo seeding failed (continuing without it)', { error: err.message });
     }
   }
+
+  // Schedule the once-a-day card usage pull.
+  startCardSyncScheduler();
 
   // Require the app only after env is validated and config is ready.
   const app = require('./app');

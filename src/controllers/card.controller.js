@@ -3,6 +3,8 @@
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const Card = require('../models/Card');
+const User = require('../models/User');
+const { syncUserCards } = require('../services/cardSync.service');
 
 const EDITABLE_FIELDS = [
   'source', 'cardType', 'bankName', 'cardName', 'last4', 'balance', 'statementBalance',
@@ -63,4 +65,17 @@ const deleteCard = asyncHandler(async (req, res) => {
   res.json({ deleted: true, id: req.params.id });
 });
 
-module.exports = { listCards, createCard, getCard, updateCard, deleteCard };
+/**
+ * POST /api/cards/sync
+ * Manually pull the latest balances for the user's Plaid-connected cards.
+ * Respects the once-a-day idempotency guard; pass ?force=true to override
+ * (useful for the demo).
+ */
+const syncCards = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id).select('+plaidAccessToken');
+  const force = req.query.force === 'true' || req.body.force === true;
+  const result = await syncUserCards(user, { force });
+  res.json(result);
+});
+
+module.exports = { listCards, createCard, getCard, updateCard, deleteCard, syncCards };

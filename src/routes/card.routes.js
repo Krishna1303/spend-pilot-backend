@@ -2,7 +2,7 @@
 
 const express = require('express');
 const {
-  listCards, createCard, getCard, updateCard, deleteCard,
+  listCards, createCard, getCard, updateCard, deleteCard, syncCards,
 } = require('../controllers/card.controller');
 const { protect } = require('../middleware/authMiddleware');
 const { validateBody } = require('../middleware/validate');
@@ -23,6 +23,7 @@ router.post(
   }),
   createCard
 );
+router.post('/sync', syncCards);
 router.get('/:id', getCard);
 router.patch('/:id', updateCard);
 router.delete('/:id', deleteCard);

@@ -9,6 +9,9 @@ const cardSchema = new mongoose.Schema(
     // Drives the Cards screen sub-tabs. Only credit cards feed the optimizer.
     cardType: { type: String, enum: ['credit', 'debit'], default: 'credit', index: true },
 
+    // Plaid account id; links a card to the account the daily sync pulls from.
+    accountId: { type: String, index: true },
+
     bankName: { type: String, trim: true, maxlength: 120 },
     cardName: { type: String, trim: true, maxlength: 120 },
     last4: { type: String, trim: true, maxlength: 4 },
