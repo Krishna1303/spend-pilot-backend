@@ -77,6 +77,7 @@ const env = {
   CARD_SYNC_ENABLED: bool(process.env.CARD_SYNC_ENABLED, true),
   CARD_SYNC_HOUR: int(process.env.CARD_SYNC_HOUR, 3), // local hour of day to run
   CARD_SYNC_MIN_INTERVAL_HOURS: int(process.env.CARD_SYNC_MIN_INTERVAL_HOURS, 20), // idempotency guard
+  CRON_SECRET: process.env.CRON_SECRET || '', // protects the Vercel Cron sync endpoint
 
   isProduction: (process.env.NODE_ENV || 'development') === 'production',
 };

@@ -4,6 +4,9 @@
   "description": "Backend API for Spend Pilot (Express + MongoDB)",
   "main": "src/server.js",
   "type": "commonjs",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
@@ -35,7 +38,7 @@
     "multer": "^2.2.0",
     "nodemailer": "^9.0.1",
     "otplib": "^13.4.1",
-    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^5.4.296",
     "plaid": "^42.2.0",
     "qrcode": "^1.5.4",
     "winston": "^3.19.0"

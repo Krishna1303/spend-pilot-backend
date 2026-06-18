@@ -1,24 +1,55 @@
 'use strict';
 
-const { PDFParse } = require('pdf-parse');
 const { toISODate } = require('../utils/dates');
+
+/**
+ * Canvas-free PDF text extraction using the pdf.js legacy build.
+ *
+ * The legacy build is designed for Node and ships its own DOM polyfills, and
+ * text extraction (getTextContent) never touches a canvas — so this works in
+ * serverless runtimes (Vercel) without the native @napi-rs/canvas binary that
+ * used to crash the process on boot.
+ *
+ * pdf.js is ESM; we import it lazily via dynamic import() from CommonJS and
+ * cache the module promise.
+ */
+let pdfjsPromise = null;
+function loadPdfjs() {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import('pdfjs-dist/legacy/build/pdf.mjs');
+  }
+  return pdfjsPromise;
+}
+
+async function extractText(buffer) {
+  const pdfjs = await loadPdfjs();
+  const doc = await pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    isEvalSupported: false,
+    disableFontFace: true,
+    verbosity: 0, // errors only; silences the standard-font warning
+  }).promise;
+
+  try {
+    let text = '';
+    for (let i = 1; i <= doc.numPages; i += 1) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map((item) => item.str || '').join(' ') + '\n';
+      page.cleanup();
+    }
+    return text;
+  } finally {
+    await doc.destroy();
+  }
+}
 
 /**
  * Extract key fields from a text-based credit card statement PDF.
  * Returns a review payload; the frontend confirms/edits before use.
  */
 async function parseStatement(buffer) {
-  // pdf-parse v2: instantiate with the buffer, then extract text.
-  const parser = new PDFParse({ data: buffer });
-  let data;
-  try {
-    data = await parser.getText();
-  } finally {
-    if (typeof parser.destroy === 'function') {
-      await parser.destroy().catch(() => {});
-    }
-  }
-  const rawText = data.text || '';
+  const rawText = await extractText(buffer);
   const normalized = rawText.replace(/[ \t]+/g, ' ').replace(/\r/g, '');
 
   const statementBalance = extractMoney(normalized, [

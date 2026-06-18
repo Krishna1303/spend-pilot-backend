@@ -26,6 +26,7 @@ const plaidRoutes = require('./routes/plaid.routes');
 const chatbotRoutes = require('./routes/chatbot.routes');
 const supportRoutes = require('./routes/support.routes');
 const adminRoutes = require('./routes/admin.routes');
+const cronRoutes = require('./routes/cron.routes');
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.use('/api/plaid', plaidRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/cron', cronRoutes);
 
 // `/` is served by the static landing page (public/index.html) above.
 

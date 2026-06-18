@@ -3,7 +3,7 @@
 const multer = require('multer');
 
 /**
- * In-memory PDF upload. Memory storage keeps the buffer for pdf-parse without
+ * In-memory PDF upload. Memory storage keeps the buffer for the parser without
  * writing to disk. Limited to 5 MB and PDF mime type only.
  */
 const upload = multer({

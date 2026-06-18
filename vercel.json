@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node",
+      "config": { "includeFiles": ["public/**", "node_modules/pdfjs-dist/legacy/**"] }
+    }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "/api/index.js" }
+  ],
+  "crons": [
+    { "path": "/api/cron/card-sync", "schedule": "0 3 * * *" }
+  ]
+}
