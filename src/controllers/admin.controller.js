@@ -4,7 +4,10 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const User = require('../models/User');
 const Card = require('../models/Card');
+const Transaction = require('../models/Transaction');
+const OptimizerRecommendation = require('../models/OptimizerRecommendation');
 const SupportTicket = require('../models/SupportTicket');
+const logger = require('../config/logger');
 const { notifyUserOfReply } = require('../services/email.service');
 
 /** GET /api/admin/users — list users with card counts. */
@@ -63,4 +66,90 @@ const updateTicket = asyncHandler(async (req, res) => {
   res.json({ ticket, userNotified });
 });
 
-module.exports = { listUsers, listTickets, updateTicket };
+/** GET /api/admin/users/:id — full detail for one user (CRM record view). */
+const getUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) throw ApiError.notFound('User not found');
+
+  const [cardCount, ticketCount] = await Promise.all([
+    Card.countDocuments({ userId: user.id }),
+    SupportTicket.countDocuments({ userId: user.id }),
+  ]);
+
+  res.json({
+    user: {
+      ...user.toPublicJSON(),
+      cardCount,
+      ticketCount,
+      lastLoginAt: user.lastLoginAt,
+      lastLoginIp: user.lastLoginIp,
+    },
+  });
+});
+
+/**
+ * PATCH /api/admin/users/:id  Body: { name, mobile, profileImageUrl, email,
+ *                                     role, subscriptionPlan }
+ * Edit a user record. Only whitelisted fields are mutable (never password or
+ * Plaid tokens). An admin cannot remove their own admin role (self-lockout
+ * guard); email changes are uniqueness-checked.
+ */
+const updateUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) throw ApiError.notFound('User not found');
+
+  const { name, mobile, profileImageUrl, email, role, subscriptionPlan } = req.body;
+
+  if (name !== undefined) user.name = name;
+  if (mobile !== undefined) user.mobile = mobile;
+  if (profileImageUrl !== undefined) user.profileImageUrl = profileImageUrl;
+  if (subscriptionPlan !== undefined) user.subscriptionPlan = subscriptionPlan;
+
+  if (role !== undefined) {
+    if (!['user', 'admin'].includes(role)) throw ApiError.badRequest('role must be user or admin');
+    if (String(user.id) === String(req.user.id) && role !== 'admin') {
+      throw ApiError.forbidden('You cannot remove your own admin role');
+    }
+    user.role = role;
+  }
+
+  if (email !== undefined) {
+    const normalized = String(email).toLowerCase().trim();
+    if (normalized !== user.email) {
+      const taken = await User.findOne({ email: normalized, _id: { $ne: user.id } });
+      if (taken) throw ApiError.conflict('An account with that email already exists');
+      user.email = normalized;
+    }
+  }
+
+  await user.save();
+  logger.info('Admin updated user', { adminId: req.user.id, userId: user.id });
+  res.json({ user: user.toPublicJSON() });
+});
+
+/**
+ * DELETE /api/admin/users/:id — remove a user and cascade their data.
+ * An admin cannot delete their own account here (use the profile screen).
+ */
+const deleteUser = asyncHandler(async (req, res) => {
+  if (String(req.params.id) === String(req.user.id)) {
+    throw ApiError.forbidden('Delete your own account from the profile screen, not the CRM');
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) throw ApiError.notFound('User not found');
+
+  const userId = user.id;
+  await Promise.all([
+    Card.deleteMany({ userId }),
+    Transaction.deleteMany({ userId }),
+    OptimizerRecommendation.deleteMany({ userId }),
+    SupportTicket.deleteMany({ userId }),
+  ]);
+  await User.deleteOne({ _id: userId });
+
+  logger.info('Admin deleted user', { adminId: req.user.id, userId });
+  res.json({ deleted: true, id: userId });
+});
+
+module.exports = { listUsers, listTickets, updateTicket, getUser, updateUser, deleteUser };
