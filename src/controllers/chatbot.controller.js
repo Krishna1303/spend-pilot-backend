@@ -11,7 +11,12 @@ const ask = asyncHandler(async (req, res) => {
   if (!question || !String(question).trim()) throw ApiError.badRequest('question is required');
 
   const result = await chatbotService.ask(String(question).trim());
-  res.json({ answer: result.answer, escalatable: result.escalatable, articleId: result.articleId });
+  res.json({
+    answer: result.answer,
+    escalatable: result.escalatable,
+    sources: result.sources,
+    confidence: result.confidence,
+  });
 });
 
 /** POST /api/support/tickets  Body: { subject, message } */
