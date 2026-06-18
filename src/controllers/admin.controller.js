@@ -5,6 +5,7 @@ const ApiError = require('../utils/ApiError');
 const User = require('../models/User');
 const Card = require('../models/Card');
 const SupportTicket = require('../models/SupportTicket');
+const { notifyUserOfReply } = require('../services/email.service');
 
 /** GET /api/admin/users — list users with card counts. */
 const listUsers = asyncHandler(async (req, res) => {
@@ -50,7 +51,16 @@ const updateTicket = asyncHandler(async (req, res) => {
     ticket.assignedAdminId = req.user.id;
   }
   await ticket.save();
-  res.json({ ticket });
+
+  // Relay (admin side): email the user that an agent replied.
+  let userNotified = false;
+  if (reply) {
+    const ticketUser = await User.findById(ticket.userId);
+    const mail = await notifyUserOfReply(ticket, ticketUser);
+    userNotified = mail.delivered;
+  }
+
+  res.json({ ticket, userNotified });
 });
 
 module.exports = { listUsers, listTickets, updateTicket };

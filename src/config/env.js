@@ -58,6 +58,15 @@ const env = {
   // Demo seeding
   SEED_DEMO_DATA: bool(process.env.SEED_DEMO_DATA, false),
 
+  // Email / support escalation
+  MAIL_ENABLED: bool(process.env.MAIL_ENABLED, false),
+  SMTP_HOST: process.env.SMTP_HOST || '',
+  SMTP_PORT: int(process.env.SMTP_PORT, 587),
+  SMTP_USER: process.env.SMTP_USER || '',
+  SMTP_PASS: process.env.SMTP_PASS || '',
+  SMTP_FROM: process.env.SMTP_FROM || 'SpendPilot Support <support@spendpilot.app>',
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'admin@spendpilot.app',
+
   // Daily card usage sync
   CARD_SYNC_ENABLED: bool(process.env.CARD_SYNC_ENABLED, true),
   CARD_SYNC_HOUR: int(process.env.CARD_SYNC_HOUR, 3), // local hour of day to run
