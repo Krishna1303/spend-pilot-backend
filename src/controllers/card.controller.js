@@ -5,7 +5,7 @@ const ApiError = require('../utils/ApiError');
 const Card = require('../models/Card');
 
 const EDITABLE_FIELDS = [
-  'source', 'bankName', 'cardName', 'last4', 'balance', 'statementBalance',
+  'source', 'cardType', 'bankName', 'cardName', 'last4', 'balance', 'statementBalance',
   'minimumPayment', 'dueDate', 'apr', 'creditLimit',
 ];
 
@@ -17,9 +17,20 @@ function pickFields(body) {
   return out;
 }
 
-/** GET /api/cards */
+/**
+ * GET /api/cards
+ * Optional ?type=credit|debit filter to power the Cards screen sub-tabs.
+ */
 const listCards = asyncHandler(async (req, res) => {
-  const cards = await Card.find({ userId: req.user.id }).sort({ createdAt: -1 });
+  const filter = { userId: req.user.id };
+  const { type } = req.query;
+  if (type !== undefined) {
+    if (!['credit', 'debit'].includes(type)) {
+      throw ApiError.badRequest('type must be "credit" or "debit"');
+    }
+    filter.cardType = type;
+  }
+  const cards = await Card.find(filter).sort({ createdAt: -1 });
   res.json({ cards });
 });
 

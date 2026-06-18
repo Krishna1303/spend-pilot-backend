@@ -6,6 +6,8 @@ const cardSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     source: { type: String, enum: ['manual', 'pdf', 'plaid'], default: 'manual' },
+    // Drives the Cards screen sub-tabs. Only credit cards feed the optimizer.
+    cardType: { type: String, enum: ['credit', 'debit'], default: 'credit', index: true },
 
     bankName: { type: String, trim: true, maxlength: 120 },
     cardName: { type: String, trim: true, maxlength: 120 },

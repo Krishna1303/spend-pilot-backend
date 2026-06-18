@@ -9,18 +9,19 @@ const { optimizePayments } = require('../services/optimizer.service');
 /**
  * POST /api/optimizer/recommend
  * Body: { cards?, maxPayment }
- * If `cards` is omitted, the user's stored cards are used.
+ * If `cards` is omitted, the user's stored CREDIT cards are used (debit cards
+ * carry no APR/debt and are excluded from the payment plan).
  */
 const recommend = asyncHandler(async (req, res) => {
   const { maxPayment } = req.body;
   let cards = req.body.cards;
 
   if (!Array.isArray(cards) || cards.length === 0) {
-    cards = await Card.find({ userId: req.user.id });
+    cards = await Card.find({ userId: req.user.id, cardType: 'credit' });
   }
 
   if (!cards || cards.length === 0) {
-    throw ApiError.badRequest('No cards available to optimize. Add a card first.');
+    throw ApiError.badRequest('No credit cards available to optimize. Add a credit card first.');
   }
 
   const result = optimizePayments(cards, maxPayment);
