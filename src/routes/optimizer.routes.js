@@ -1,7 +1,9 @@
 'use strict';
 
 const express = require('express');
-const { recommend, rescue } = require('../controllers/optimizer.controller');
+const {
+  recommend, rescue, simulateScenarios, evaluateBalanceTransfer,
+} = require('../controllers/optimizer.controller');
 const { protect } = require('../middleware/authMiddleware');
 const { validateBody } = require('../middleware/validate');
 
@@ -25,6 +27,23 @@ router.post(
     lateFeePerCard: { type: 'number', min: 0 },
   }),
   rescue
+);
+
+router.post(
+  '/simulate',
+  protect,
+  validateBody({
+    scenarios: { type: 'array', required: true, min: 1 },
+    monthlyPayment: { type: 'number', min: 0 },
+  }),
+  simulateScenarios
+);
+
+router.post(
+  '/balance-transfer',
+  protect,
+  validateBody({ monthlyPayment: { type: 'number', required: true, min: 0 } }),
+  evaluateBalanceTransfer
 );
 
 module.exports = router;

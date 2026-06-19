@@ -5,54 +5,83 @@ const { env } = require('../config/env');
 const logger = require('../config/logger');
 const { toISODate } = require('../utils/dates');
 
+const SYSTEM_PROMPT =
+  'You are a helpful assistant for a credit-card payoff app. The backend has ALREADY ' +
+  'calculated the numbers below. Do NOT change any amounts, dates, or rates, and do NOT ' +
+  'invent data not present in the input. Explain it in simple, friendly, plain English. ' +
+  'Be concise (a short paragraph or a few bullets). End with a one-line note that this is ' +
+  'not financial advice.';
+
+const KINDS = {
+  optimizer: { prompt: optimizerPrompt, fallback: optimizerFallback },
+  rescue: { prompt: genericPrompt('Payday Rescue Plan'), fallback: rescueFallback },
+  simulate: { prompt: genericPrompt('what-if simulation'), fallback: simulateFallback },
+  balanceTransfer: { prompt: genericPrompt('balance-transfer analysis'), fallback: balanceTransferFallback },
+};
+
 /**
- * Explain an ALREADY-CALCULATED optimizer plan in plain English.
- *
- * The AI never changes amounts or invents data — it only explains. If the AI
- * is unavailable or errors, we return a deterministic explanation built from
- * the per-card reasons so the demo always shows something.
+ * Narrate an already-calculated result in plain English. The AI only explains
+ * — never changes numbers. Falls back to a deterministic narration assembled
+ * from the result so the demo always shows something.
  */
-async function explainPlan({ cards = [], optimizerResult }) {
-  if (!optimizerResult || !Array.isArray(optimizerResult.plan)) {
-    return { explanation: 'No payment plan was provided to explain.', source: 'fallback' };
+async function narrate({ kind, payload, cards = [] }) {
+  const handler = KINDS[kind];
+  if (!handler) {
+    return { explanation: 'Nothing to explain for this request.', source: 'fallback' };
   }
+  if (!payload || typeof payload !== 'object') {
+    return { explanation: 'No result was provided to explain.', source: 'fallback' };
+  }
+
+  const fallback = () => ({ explanation: handler.fallback(payload), source: 'fallback' });
 
   const client = getAIClient();
-  if (!client) {
-    return { explanation: buildDeterministicExplanation(optimizerResult), source: 'fallback' };
-  }
+  if (!client) return fallback();
 
   try {
-    const prompt = buildPrompt(cards, optimizerResult);
+    const userPrompt = handler.prompt(payload, cards);
     const response = await client.messages.create({
       model: env.AI_MODEL,
       max_tokens: 700,
-      system:
-        'You are a helpful assistant for a credit-card payment app. The backend has ALREADY ' +
-        'calculated the payment plan. Do NOT change any payment amounts. Do NOT invent APRs, ' +
-        'balances, due dates, or card names. Explain the plan in simple, friendly language. ' +
-        'Keep it short: a one-line summary, why one card is prioritized, any warning, and a ' +
-        'one-line disclaimer that this is not financial advice.',
-      messages: [{ role: 'user', content: prompt }],
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
     });
-
     const text = (response.content || [])
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('\n')
       .trim();
-
-    if (!text) {
-      return { explanation: buildDeterministicExplanation(optimizerResult), source: 'fallback' };
-    }
+    if (!text) return fallback();
     return { explanation: text, source: 'ai', model: env.AI_MODEL };
   } catch (err) {
-    logger.warn('AI explanation failed; using deterministic fallback', { error: err.message });
-    return { explanation: buildDeterministicExplanation(optimizerResult), source: 'fallback' };
+    logger.warn('AI narration failed; using deterministic fallback', { kind, error: err.message });
+    return fallback();
   }
 }
 
-function buildPrompt(cards, optimizerResult) {
+/** Backward-compatible wrapper for the original optimizer explanation. */
+async function explainPlan({ cards = [], optimizerResult }) {
+  if (!optimizerResult || !Array.isArray(optimizerResult.plan)) {
+    return { explanation: 'No payment plan was provided to explain.', source: 'fallback' };
+  }
+  return narrate({ kind: 'optimizer', payload: optimizerResult, cards });
+}
+
+function money(n) {
+  const v = Number(n);
+  return Number.isFinite(v) ? `$${v.toFixed(2)}` : '$0.00';
+}
+
+// ---- Prompt builders ----
+
+function genericPrompt(label) {
+  return (payload) =>
+    `Here is a calculated ${label} as JSON. Explain it in plain English without changing any ` +
+    `numbers or inventing data.\n\n${JSON.stringify(payload, null, 2)}\n\n` +
+    'Remember: do not change the amounts; this is not financial advice.';
+}
+
+function optimizerPrompt(optimizerResult, cards) {
   const safe = {
     strategy: optimizerResult.strategy,
     warning: optimizerResult.warning,
@@ -75,28 +104,88 @@ function buildPrompt(cards, optimizerResult) {
   );
 }
 
-/** Deterministic explanation assembled from the optimizer reasons. */
-function buildDeterministicExplanation(optimizerResult) {
-  const lines = [];
-  lines.push(`Strategy: ${optimizerResult.strategy}.`);
+// ---- Deterministic fallbacks ----
 
-  if (optimizerResult.warning) {
-    lines.push(`Heads up: ${optimizerResult.warning}`);
-  }
-
+function optimizerFallback(optimizerResult) {
+  const lines = [`Strategy: ${optimizerResult.strategy}.`];
+  if (optimizerResult.warning) lines.push(`Heads up: ${optimizerResult.warning}`);
   for (const card of optimizerResult.plan || []) {
     const name = card.cardName || card.bankName || 'Card';
     if (card.recommendedPayment > 0) {
-      lines.push(`• ${name}: pay $${card.recommendedPayment.toFixed(2)} — ${card.reason}`);
+      lines.push(`• ${name}: pay ${money(card.recommendedPayment)} — ${card.reason}`);
     }
   }
-
   if (typeof optimizerResult.remaining === 'number' && optimizerResult.remaining > 0) {
-    lines.push(`You have $${optimizerResult.remaining.toFixed(2)} left over after this plan.`);
+    lines.push(`You have ${money(optimizerResult.remaining)} left over after this plan.`);
   }
-
   lines.push('This is an automated suggestion, not financial advice.');
   return lines.join('\n');
 }
 
-module.exports = { explainPlan, buildDeterministicExplanation };
+function rescueFallback(rescue) {
+  const lines = [`${rescue.strategy || 'Payday Rescue Plan'}:`];
+  for (const a of rescue.actions || []) {
+    const when = a.when === 'today' ? `today (${a.date})` : `on payday (${a.date})`;
+    lines.push(`• Pay ${money(a.amount)} to ${a.cardName} ${when} — ${a.reason}`);
+  }
+  const s = rescue.summary || {};
+  const bits = [];
+  if (s.lateFeesAvoided) bits.push(`avoid ${money(s.lateFeeAmountAvoided)} in late fees`);
+  if (s.interestSavedVsMinimums) bits.push(`save ${money(s.interestSavedVsMinimums)} in interest`);
+  if (s.debtFreeDate) {
+    const sooner = s.monthsSavedVsMinimums ? ` (${s.monthsSavedVsMinimums} months sooner than minimums)` : '';
+    bits.push(`be debt-free by ${s.debtFreeDate}${sooner}`);
+  }
+  if (bits.length) lines.push(`This plan helps you ${bits.join(', ')}.`);
+  for (const w of rescue.warnings || []) lines.push(`⚠ ${w}`);
+  lines.push('This is an automated suggestion, not financial advice.');
+  return lines.join('\n');
+}
+
+function simulateFallback(sim) {
+  const lines = [];
+  const b = sim.baseline || {};
+  if (b.debtFreeDate) {
+    lines.push(`Baseline: paying ${money(b.monthlyPayment)}/month, you're debt-free by ${b.debtFreeDate} (${b.monthsToDebtFree} months), paying ${money(b.totalInterest)} in interest.`);
+  } else {
+    lines.push('Baseline: at this payment the debt does not pay off in a reasonable time.');
+  }
+  for (const sc of sim.scenarios || []) {
+    const v = sc.vsBaseline || {};
+    if (v.interestSaved != null) {
+      lines.push(`• ${sc.label}: debt-free ${sc.debtFreeDate} — saves ${v.monthsSaved} months and ${money(v.interestSaved)} vs baseline.`);
+    } else if (v.paysOffWhereBaselineDoesnt) {
+      lines.push(`• ${sc.label}: pays off by ${sc.debtFreeDate}, where the baseline doesn't.`);
+    } else {
+      lines.push(`• ${sc.label}: debt-free ${sc.debtFreeDate || 'n/a'}.`);
+    }
+  }
+  if (sim.bestScenario) {
+    lines.push(`Best option: "${sim.bestScenario.label}" — saves ${money(sim.bestScenario.interestSaved)}.`);
+  }
+  lines.push('This is an automated comparison, not financial advice.');
+  return lines.join('\n');
+}
+
+function balanceTransferFallback(bt) {
+  const lines = [];
+  const amt = bt.inputs ? bt.inputs.amount : null;
+  lines.push(`Balance transfer${amt ? ` of ${money(amt)}` : ''}: transfer fee ${money(bt.transferFee)}.`);
+  if (bt.stay && bt.stay.totalInterest != null) {
+    lines.push(`Staying put: ${money(bt.stay.totalInterest)} interest over ${bt.stay.months} months.`);
+  }
+  if (bt.transfer && bt.transfer.totalCost != null) {
+    lines.push(`Transferring: ${money(bt.transfer.totalCost)} total cost (fee + interest) over ${bt.transfer.months} months.`);
+  }
+  if (bt.recommendation === 'transfer' && bt.savings != null) {
+    const be = bt.breakEvenMonths != null ? `, breaking even in ${bt.breakEvenMonths} months` : '';
+    lines.push(`Recommendation: transfer — it saves ${money(bt.savings)}${be}.`);
+  } else {
+    lines.push('Recommendation: stay — the transfer fee outweighs the interest saved at this payment.');
+  }
+  for (const w of bt.warnings || []) lines.push(`⚠ ${w}`);
+  lines.push('This is an automated analysis, not financial advice.');
+  return lines.join('\n');
+}
+
+module.exports = { narrate, explainPlan, optimizerFallback, buildDeterministicExplanation: optimizerFallback, KINDS };
