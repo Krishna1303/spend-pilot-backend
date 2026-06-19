@@ -8,6 +8,7 @@ const User = require('../models/User');
 const { syncAllUsers } = require('../services/cardSync.service');
 const { buildAlerts } = require('../services/alerts.service');
 const { sendAlertDigest } = require('../services/email.service');
+const { recordSnapshot } = require('../services/progress.service');
 
 /** Verify the Vercel Cron secret (Authorization: Bearer <CRON_SECRET>). */
 function assertCronAuth(req) {
@@ -44,6 +45,9 @@ const alertsDigest = asyncHandler(async (req, res) => {
 
   for (const user of users) {
     try {
+      // Record today's debt snapshot so the progress chart accrues daily.
+      await recordSnapshot(user.id).catch(() => {});
+
       const { alerts, counts } = await buildAlerts(user.id);
       usersProcessed += 1;
       if (counts.critical + counts.warning > 0) {

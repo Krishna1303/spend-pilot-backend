@@ -7,6 +7,7 @@ const Card = require('../models/Card');
 const Transaction = require('../models/Transaction');
 const OptimizerRecommendation = require('../models/OptimizerRecommendation');
 const SupportTicket = require('../models/SupportTicket');
+const ProgressSnapshot = require('../models/ProgressSnapshot');
 const logger = require('../config/logger');
 const { notifyUserOfReply } = require('../services/email.service');
 
@@ -145,6 +146,7 @@ const deleteUser = asyncHandler(async (req, res) => {
     Transaction.deleteMany({ userId }),
     OptimizerRecommendation.deleteMany({ userId }),
     SupportTicket.deleteMany({ userId }),
+    ProgressSnapshot.deleteMany({ userId }),
   ]);
   await User.deleteOne({ _id: userId });
 

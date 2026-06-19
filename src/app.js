@@ -19,6 +19,7 @@ const profileRoutes = require('./routes/profile.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const contentRoutes = require('./routes/content.routes');
 const alertsRoutes = require('./routes/alerts.routes');
+const progressRoutes = require('./routes/progress.routes');
 const cardRoutes = require('./routes/card.routes');
 const statementRoutes = require('./routes/statement.routes');
 const optimizerRoutes = require('./routes/optimizer.routes');
@@ -75,6 +76,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/alerts', alertsRoutes);
+app.use('/api/progress', progressRoutes);
 app.use('/api', contentRoutes); // /api/legal/terms, /api/legal/privacy, /api/help
 app.use('/api/cards', cardRoutes);
 app.use('/api/statements', statementRoutes);

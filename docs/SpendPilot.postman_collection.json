@@ -19,7 +19,8 @@
     { "key": "ticketId", "value": "" },
     { "key": "totpSecret", "value": "" },
     { "key": "totpCode", "value": "" },
-    { "key": "publicToken", "value": "demo-public-token" }
+    { "key": "publicToken", "value": "demo-public-token" },
+    { "key": "cronSecret", "value": "test-cron-secret" }
   ],
   "item": [
     {
@@ -279,7 +280,43 @@
           }
         },
         {
-          "name": "AI explain plan",
+          "name": "Payday Rescue Plan (dated plan)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"paycheckDate\": \"2026-07-01\",\n  \"paycheckAmount\": 800,\n  \"cashBuffer\": 200,\n  \"currentCash\": 30\n}" },
+            "url": "{{baseUrl}}/api/optimizer/rescue"
+          }
+        },
+        {
+          "name": "What-if simulator",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"monthlyPayment\": 300,\n  \"scenarios\": [\n    { \"label\": \"Add $200/mo\", \"extraMonthly\": 200 },\n    { \"label\": \"$1000 lump sum\", \"lumpSum\": 1000 }\n  ]\n}" },
+            "url": "{{baseUrl}}/api/optimizer/simulate"
+          }
+        },
+        {
+          "name": "Balance-transfer evaluator",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 5000,\n  \"sourceApr\": 24,\n  \"monthlyPayment\": 300,\n  \"offer\": { \"promoApr\": 0, \"promoMonths\": 18, \"transferFeePct\": 3 }\n}" },
+            "url": "{{baseUrl}}/api/optimizer/balance-transfer"
+          }
+        },
+        {
+          "name": "AI explain plan (legacy optimizerResult)",
           "request": {
             "method": "POST",
             "header": [
@@ -287,6 +324,18 @@
               { "key": "Content-Type", "value": "application/json" }
             ],
             "body": { "mode": "raw", "raw": "{\n  \"optimizerResult\": {\n    \"strategy\": \"Debt Avalanche + Due Date Safety\",\n    \"warning\": null,\n    \"remaining\": 365,\n    \"plan\": [\n      { \"cardName\": \"Sapphire\", \"recommendedPayment\": 135, \"reason\": \"Extra payment added because this card has the highest APR.\" }\n    ]\n  }\n}" },
+            "url": "{{baseUrl}}/api/ai/explain"
+          }
+        },
+        {
+          "name": "AI narrate (kind: balanceTransfer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"kind\": \"balanceTransfer\",\n  \"result\": {\n    \"inputs\": { \"amount\": 5000 },\n    \"transferFee\": 150,\n    \"stay\": { \"totalInterest\": 1143, \"months\": 21 },\n    \"transfer\": { \"totalCost\": 150, \"months\": 18 },\n    \"savings\": 993,\n    \"breakEvenMonths\": 2,\n    \"recommendation\": \"transfer\",\n    \"warnings\": []\n  }\n}" },
             "url": "{{baseUrl}}/api/ai/explain"
           }
         }
@@ -569,6 +618,40 @@
         {
           "name": "CRM: delete user",
           "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{crmToken}}" }], "url": "{{baseUrl}}/api/admin/users/{{userId}}" }
+        }
+      ]
+    },
+    {
+      "name": "12. Alerts & Progress",
+      "item": [
+        {
+          "name": "Alerts (due / utilization / payday)",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/alerts" }
+        },
+        {
+          "name": "Progress (history, milestones, interest saved)",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/progress" }
+        }
+      ]
+    },
+    {
+      "name": "13. Cron (CRON_SECRET)",
+      "item": [
+        {
+          "name": "Card sync (daily)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{cronSecret}}" }],
+            "url": "{{baseUrl}}/api/cron/card-sync"
+          }
+        },
+        {
+          "name": "Alerts digest (daily email)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{cronSecret}}" }],
+            "url": "{{baseUrl}}/api/cron/alerts-digest"
+          }
         }
       ]
     }

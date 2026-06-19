@@ -6,7 +6,7 @@ mostly just press **Send** top-to-bottom.
 
 ## Files
 
-- `docs/SpendPilot.postman_collection.json` — the requests (11 folders, 50 requests)
+- `docs/SpendPilot.postman_collection.json` — the requests (13 folders, 58 requests)
 - `docs/SpendPilot.postman_environment.json` — variable values for local testing
 
 ## 1. Prerequisites
@@ -15,12 +15,13 @@ mostly just press **Send** top-to-bottom.
 2. **Start the server with demo data and the AI/Plaid fallbacks** (no external keys needed):
 
    ```bash
-   SEED_DEMO_DATA=true npm start
+   SEED_DEMO_DATA=true CRON_SECRET=test-cron-secret npm start
    ```
 
    Seeding creates the admin (`admin@spendpilot.app` / `Admin1234!`) and a demo
-   user with cards/transactions/tickets. Without it, the **Admin CRM** folder
-   has no admin to log in as.
+   user with cards/transactions/tickets and **6 weeks of debt-progress history**.
+   Without it, the **Admin CRM** folder has no admin to log in as. `CRON_SECRET`
+   must match the `cronSecret` variable for the **Cron** folder to return 200.
 
 > **macOS port note:** macOS AirPlay Receiver listens on port **5000**. If
 > `http://localhost:5000` returns `403 Forbidden` on every call, that's AirPlay,
@@ -53,11 +54,13 @@ Run folders in order. Within a folder, top-to-bottom.
 | 4 | Profile | Get/update; **Delete account is destructive — run last** |
 | 5 | Cards | Create credit+debit, sub-tab filters, update, sync, delete |
 | 6 | Statements | PDF upload → extracted fields (attach a PDF first) |
-| 7 | Optimizer & AI | Deterministic plan + plain-language explanation |
+| 7 | Optimizer & AI | Optimizer, **Payday Rescue Plan**, **what-if simulator**, **balance-transfer evaluator**, AI narration |
 | 8 | Plaid | Link token, exchange (demo), accounts, transactions |
 | 9 | Dashboard | Spend-vs-earn series, categories, due dates, payday |
 | 10 | Chatbot & Support | RAG answer, escalation, private relay thread |
 | 11 | Admin CRM (TOTP) | Admin login → TOTP enroll → step-up → CRM access |
+| 12 | Alerts & Progress | Payment alerts; debt history, milestones, interest saved |
+| 13 | Cron (CRON_SECRET) | Daily card-sync + alert-digest endpoints (Bearer `cronSecret`) |
 
 ### Notes per folder
 
@@ -73,6 +76,18 @@ requests. *Sync cards from Plaid* only returns data after you've run the Plaid
 (form-data), and on the `statement` row click **Select Files** to attach a
 text-based credit-card statement PDF. Response returns
 `{ extracted, rawPreview, needsReview: true }`.
+
+**7. Optimizer & AI** — beyond the basic optimizer:
+- *Payday Rescue Plan* returns a dated action list (`today` vs `payday`) plus
+  late-fees-avoided, interest saved, and a debt-free date.
+- *What-if simulator* compares scenarios (`extraMonthly`, `lumpSum`,
+  `cardOverrides`, `removeCardIds`) against a baseline and picks the best.
+- *Balance-transfer evaluator* returns stay-vs-transfer cost, `savings`,
+  `breakEvenMonths`, and a `recommendation`.
+- *AI explain/narrate* accepts either the legacy `{ optimizerResult }` or the
+  new `{ kind, result }` form (`kind` = optimizer | rescue | simulate |
+  balanceTransfer). With no `ANTHROPIC_API_KEY` it returns `source: "fallback"`
+  (a deterministic narration) — still a valid 200.
 
 **8. Plaid** — With no `PLAID_CLIENT_ID/SECRET` set, these return seeded demo
 data with `demo: true`. *Exchange public token* uses the `publicToken` variable
@@ -99,6 +114,19 @@ and *Add message* exercise the user side of the private relay.
 > The `crmToken` expires in 15 minutes (`CRM_TOKEN_EXPIRES_IN`). If CRM calls
 > start returning `401`, re-run **TOTP verify** to mint a fresh one.
 
+**12. Alerts & Progress** — *Alerts* returns due-soon/past-due, high-utilization,
+and payday-coming alerts with severity + counts (richest for the seeded demo
+user). *Progress* returns the debt history (the demo user has 6 weeks of
+declining balance), milestones, `debtChange`, and projected interest saved;
+each call also records today's snapshot.
+
+**13. Cron (CRON_SECRET)** — these mirror what Vercel Cron calls daily. They use
+`Authorization: Bearer {{cronSecret}}`, which must equal the server's
+`CRON_SECRET`. *Card sync* runs the all-users Plaid refresh; *Alerts digest*
+emails users with actionable alerts (logged in fallback when `MAIL_ENABLED=false`)
+and records a daily progress snapshot. Wrong/missing secret → `401`; if the
+server has no `CRON_SECRET` set → `403`.
+
 ## 4. Key negative tests (verify the guards)
 
 | Request | Expected |
@@ -109,26 +137,37 @@ and *Add message* exercise the user side of the private relay.
 | Signup with invalid email / missing fields | `400` with `details[]` |
 | Update profile email to another user's email | `409` |
 | `POST /api/optimizer/recommend` with no credit cards | `400` |
+| `POST /api/optimizer/rescue` missing `paycheckDate` | `400` |
+| `POST /api/optimizer/simulate` missing/empty `scenarios` | `400` |
+| `POST /api/optimizer/balance-transfer` missing `offer`/`promoMonths` | `400` |
+| `POST /api/ai/explain` with invalid `kind` | `400` |
 | Chatbot out-of-scope question | `200` with `escalatable: true` |
 | Another user's `GET /api/support/tickets/:id` | `404` |
 | CRM route with normal admin token (no step-up) | `401` |
 | CRM route as a non-admin user | `403` |
 | Admin demoting own role / deleting own account via CRM | `403` |
 | `DELETE /api/profile` with wrong password | `401` |
+| Cron endpoint with wrong/missing `cronSecret` | `401` |
 
 ## 5. Response shape cheatsheet
 
 ```
-Health      { ok, service, status, dependencies: { db, ai, plaid }, ... }
-Auth        { token, user }
-Cards       { cards: [...] } | { card: {...} }
-Optimizer   { strategy, plan: [...], riskScores: [...], warning, totalMinimum, remaining }
-AI          { explanation, source: "ai"|"fallback" }
-Dashboard   { summary, spendingVsEarning, categorizedSpending, upcomingDueDates, payday, totals }
-Chatbot     { answer, escalatable, sources, confidence }
-Escalate    { ticket, adminNotified, fallback }
-TOTP verify { crmToken, expiresIn }
-Errors      { error: "message", details?: [...] }   // consistent everywhere
+Health        { ok, service, status, dependencies: { db, ai, plaid }, ... }
+Auth          { token, user }
+Cards         { cards: [...] } | { card: {...} }
+Optimizer     { strategy, plan: [...], riskScores: [...], warning, totalMinimum, remaining }
+Rescue        { strategy, actions: [...], warnings, summary: { lateFeesAvoided, debtFreeDate, interestSavedVsMinimums, ... } }
+Simulate      { baseline, scenarios: [{ vsBaseline: { monthsSaved, interestSaved } }], bestScenario }
+BalanceXfer   { transferFee, stay, transfer, savings, breakEvenMonths, recommendation, warnings }
+AI            { explanation, source: "ai"|"fallback" }
+Dashboard     { summary, spendingVsEarning, categorizedSpending, upcomingDueDates, payday, totals }
+Chatbot       { answer, escalatable, sources, confidence }
+Escalate      { ticket, adminNotified, fallback }
+Alerts        { alerts: [{ type, severity, title, message }], counts: { critical, warning, info } }
+Progress      { currentDebt, overallUtilization, history: [...], debtChange, milestones, interestSaved }
+TOTP verify   { crmToken, expiresIn }
+Cron          { ok, usersProcessed, ... }
+Errors        { error: "message", details?: [...] }   // consistent everywhere
 ```
 
 ## 6. Quick reset

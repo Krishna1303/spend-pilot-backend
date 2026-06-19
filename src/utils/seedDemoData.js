@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Card = require('../models/Card');
 const Transaction = require('../models/Transaction');
 const SupportTicket = require('../models/SupportTicket');
+const ProgressSnapshot = require('../models/ProgressSnapshot');
 const logger = require('../config/logger');
 
 /**
@@ -81,6 +82,27 @@ async function seedDemoData() {
       messages: [{ sender: 'user', body: 'Why is my Citi card prioritized?' }],
     });
     logger.info('Seeded demo support ticket');
+  }
+
+  // Weekly debt snapshots trending down, so the progress chart shows immediately.
+  const existingSnapshots = await ProgressSnapshot.countDocuments({ userId: demo.id });
+  if (existingSnapshots === 0) {
+    const limit = 16000; // seeded cards' total credit limit (8000+5000+3000)
+    const weekly = [6000, 5700, 5300, 4950, 4600, 4250]; // 6 weeks ago -> now
+    const snapshots = weekly.map((balance, i) => {
+      const date = new Date(Date.now() - (weekly.length - 1 - i) * 7 * 86400000);
+      date.setUTCHours(0, 0, 0, 0);
+      return {
+        userId: demo.id,
+        date,
+        totalBalance: balance,
+        totalCreditLimit: limit,
+        utilization: Math.round((balance / limit) * 1000) / 10,
+        creditCardCount: 3,
+      };
+    });
+    await ProgressSnapshot.insertMany(snapshots);
+    logger.info('Seeded demo progress snapshots', { count: snapshots.length });
   }
 }
 
