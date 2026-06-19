@@ -62,6 +62,19 @@ function notifyAdminOfUserMessage(ticket, user, body) {
   });
 }
 
+/** Send a user their daily alert digest (only actionable alerts). */
+function sendAlertDigest(user, alerts) {
+  if (!user || !user.email || !alerts || !alerts.length) {
+    return Promise.resolve({ delivered: false, fallback: true });
+  }
+  const lines = alerts.map((a) => `- [${a.severity.toUpperCase()}] ${a.title}: ${a.message}`).join('\n');
+  return sendMail({
+    to: user.email,
+    subject: `SpendPilot: ${alerts.length} payment alert${alerts.length === 1 ? '' : 's'} need your attention`,
+    text: `Hi ${user.name || 'there'},\n\nHere are your SpendPilot alerts:\n\n${lines}\n\nOpen the app to see your full payment plan.\n\n— SpendPilot`,
+  });
+}
+
 /** Notify the user that an agent replied on their ticket (the relay, user side). */
 function notifyUserOfReply(ticket, user) {
   if (!user || !user.email) return Promise.resolve({ delivered: false, fallback: true });
@@ -77,4 +90,5 @@ module.exports = {
   notifyAdminOfEscalation,
   notifyAdminOfUserMessage,
   notifyUserOfReply,
+  sendAlertDigest,
 };
