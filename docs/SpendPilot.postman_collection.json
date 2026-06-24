@@ -361,6 +361,14 @@
           }
         },
         {
+          "name": "Sandbox connect (one-call, real sandbox)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/plaid/sandbox/connect"
+          }
+        },
+        {
           "name": "Get accounts",
           "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/plaid/accounts" }
         },

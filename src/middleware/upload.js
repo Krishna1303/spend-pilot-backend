@@ -1,6 +1,7 @@
 'use strict';
 
 const multer = require('multer');
+const ApiError = require('../utils/ApiError');
 
 /**
  * In-memory PDF upload. Memory storage keeps the buffer for the parser without
@@ -11,7 +12,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
   fileFilter(req, file, cb) {
     if (file.mimetype === 'application/pdf') return cb(null, true);
-    cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Only PDF files are allowed'));
+    cb(ApiError.badRequest('Only PDF files are supported'));
   },
 });
 

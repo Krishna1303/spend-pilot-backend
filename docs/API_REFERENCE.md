@@ -162,13 +162,20 @@ corresponding result object from §6 as `result`. Always returns an
 |---|---|---|---|---|
 | POST | `/plaid/create-link-token` | user | – | `{ link_token, demo? }` |
 | POST | `/plaid/exchange-public-token` | user | `{ public_token }` | `{ connected: true }` |
+| POST | `/plaid/sandbox/connect` | user | `{ institution_id? }` | `{ connected: true, accounts: [...] }` |
 | GET | `/plaid/accounts` | user | – | `{ accounts: [...], demo }` |
 | GET | `/plaid/transactions` | user | – | `{ transactions: [...], demo }` |
 
 Flow: get `link_token` → open Plaid Link in the client → on success Plaid gives
 you a `public_token` → exchange it. With no Plaid keys configured the API returns
 seeded demo data (`demo: true`). **Send a real Plaid Link `public_token`** — a
-placeholder will be rejected by Plaid.
+placeholder will be rejected with a clean `400`.
+
+**Sandbox shortcut:** in sandbox mode, `POST /plaid/sandbox/connect` mints +
+exchanges a token and links a demo bank in one call (no Plaid Link UI) — ideal
+for testing/demo. After connecting, call `/cards/sync` to import the accounts as
+cards. (Sandbox transactions can take ~30s to become available; until then
+`/plaid/transactions` returns `demo: true`.)
 
 ---
 

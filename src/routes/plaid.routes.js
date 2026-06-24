@@ -2,7 +2,7 @@
 
 const express = require('express');
 const {
-  createLinkToken, exchangePublicToken, getAccounts, getTransactions,
+  createLinkToken, exchangePublicToken, sandboxConnect, getAccounts, getTransactions,
 } = require('../controllers/plaid.controller');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -12,6 +12,7 @@ router.use(protect);
 
 router.post('/create-link-token', createLinkToken);
 router.post('/exchange-public-token', exchangePublicToken);
+router.post('/sandbox/connect', sandboxConnect);
 router.get('/accounts', getAccounts);
 router.get('/transactions', getTransactions);
 

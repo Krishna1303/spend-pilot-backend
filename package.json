@@ -10,7 +10,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "seed": "node src/scripts/seed.js"
+    "seed": "node src/scripts/seed.js",
+    "seed:review": "node src/scripts/seedReviewData.js",
+    "test:routes": "node tests/routes.integration.js"
   },
   "keywords": [
     "express",

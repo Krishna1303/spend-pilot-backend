@@ -3,6 +3,23 @@
 const { getPlaidClient } = require('../config/plaid');
 const { env } = require('../config/env');
 const logger = require('../config/logger');
+const ApiError = require('../utils/ApiError');
+
+/**
+ * Turn a Plaid SDK error into a clean ApiError instead of a raw 500.
+ * Plaid client errors carry { error_code, error_message } on response.data.
+ */
+function toApiError(err, action) {
+  const data = err && err.response && err.response.data;
+  const code = data && data.error_code;
+  const message = (data && data.error_message) || err.message;
+  logger.error(`Plaid ${action} failed`, { error_code: code, message });
+  // Bad input (invalid/expired token, bad request) -> 400; upstream issues -> 502.
+  if (code && /^(INVALID_|MISSING_|ITEM_LOGIN_REQUIRED)/.test(code)) {
+    return ApiError.badRequest(`Plaid: ${message}`);
+  }
+  return new ApiError(502, `Plaid request failed: ${message}`);
+}
 
 /** Seeded fallback accounts so the dashboard still works without Plaid. */
 const DEMO_ACCOUNTS = [
@@ -21,14 +38,18 @@ async function createLinkToken(userId) {
   if (!client) {
     return { link_token: null, demo: true };
   }
-  const resp = await client.linkTokenCreate({
-    user: { client_user_id: String(userId) },
-    client_name: 'SpendPilot',
-    products: env.PLAID_PRODUCTS,
-    country_codes: env.PLAID_COUNTRY_CODES,
-    language: 'en',
-  });
-  return { link_token: resp.data.link_token, demo: false };
+  try {
+    const resp = await client.linkTokenCreate({
+      user: { client_user_id: String(userId) },
+      client_name: 'SpendPilot',
+      products: env.PLAID_PRODUCTS,
+      country_codes: env.PLAID_COUNTRY_CODES,
+      language: 'en',
+    });
+    return { link_token: resp.data.link_token, demo: false };
+  } catch (err) {
+    throw toApiError(err, 'linkTokenCreate');
+  }
 }
 
 async function exchangePublicToken(publicToken) {
@@ -36,8 +57,34 @@ async function exchangePublicToken(publicToken) {
   if (!client) {
     return { accessToken: 'demo-access-token', itemId: 'demo-item', demo: true };
   }
-  const resp = await client.itemPublicTokenExchange({ public_token: publicToken });
-  return { accessToken: resp.data.access_token, itemId: resp.data.item_id, demo: false };
+  try {
+    const resp = await client.itemPublicTokenExchange({ public_token: publicToken });
+    return { accessToken: resp.data.access_token, itemId: resp.data.item_id, demo: false };
+  } catch (err) {
+    throw toApiError(err, 'itemPublicTokenExchange');
+  }
+}
+
+/**
+ * Sandbox-only: mint a public_token directly (no Plaid Link UI), so the connect
+ * flow can be tested/demoed end-to-end. Default institution is Plaid's
+ * "First Platypus Bank" (ins_109508).
+ */
+async function createSandboxPublicToken(institutionId) {
+  const client = getPlaidClient();
+  if (!client) throw ApiError.badRequest('Plaid is not configured');
+  if (env.PLAID_ENV !== 'sandbox') {
+    throw ApiError.badRequest('Sandbox token creation is only available in sandbox mode');
+  }
+  try {
+    const resp = await client.sandboxPublicTokenCreate({
+      institution_id: institutionId || 'ins_109508',
+      initial_products: env.PLAID_PRODUCTS,
+    });
+    return resp.data.public_token;
+  } catch (err) {
+    throw toApiError(err, 'sandboxPublicTokenCreate');
+  }
 }
 
 async function getAccounts(accessToken) {
@@ -78,6 +125,7 @@ async function getTransactions(accessToken, { startDate, endDate } = {}) {
 module.exports = {
   createLinkToken,
   exchangePublicToken,
+  createSandboxPublicToken,
   getAccounts,
   getTransactions,
   DEMO_ACCOUNTS,
