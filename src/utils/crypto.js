@@ -29,4 +29,22 @@ function decrypt(payload) {
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }
 
-module.exports = { encrypt, decrypt };
+/** Heuristic: does this look like our iv:tag:ciphertext format? */
+function isEncrypted(value) {
+  return typeof value === 'string' && /^[^:]+:[^:]+:[^:]+$/.test(value);
+}
+
+/**
+ * Decrypt, but pass through values that aren't in our format (legacy plaintext
+ * or demo tokens) and never throw — used by transparent model getters.
+ */
+function decryptSafe(value) {
+  if (value == null) return value;
+  try {
+    return isEncrypted(value) ? decrypt(value) : value;
+  } catch {
+    return value;
+  }
+}
+
+module.exports = { encrypt, decrypt, decryptSafe, isEncrypted };

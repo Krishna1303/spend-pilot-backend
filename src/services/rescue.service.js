@@ -175,7 +175,11 @@ function buildRescuePlan(cards, opts = {}) {
     return String(a.date).localeCompare(String(b.date));
   });
 
+  // Authoritative aggregates (so the frontend doesn't have to derive them).
+  const paidToday = round2(actions.filter((a) => a.when === 'today').reduce((s, a) => s + a.amount, 0));
+  const paidOnPayday = round2(actions.filter((a) => a.when === 'payday').reduce((s, a) => s + a.amount, 0));
   const totalScheduled = round2(actions.reduce((s, a) => s + a.amount, 0));
+  const cashRemaining = round2(Math.max(0, extraPool)); // deployable cash left after the plan
   const monthlyPlanAmount = totalScheduled; // recurring amount used for projection
 
   // --- Projections: this plan vs. minimums-only ---
@@ -208,12 +212,18 @@ function buildRescuePlan(cards, opts = {}) {
     actions,
     warnings,
     summary: {
+      // Authoritative roll-ups for the UI cards.
+      paidToday,
+      paidOnPayday,
+      totalAllocated: totalScheduled,
+      cashRemaining,
+      lateFeesAvoided,
+      lateFeeAmountAvoided: round2(lateFeesAvoided * lateFee),
+      // Existing fields (kept for back-compat).
       totalScheduled,
       totalMinimum,
       extraTowardPrincipal: round2(Math.max(0, totalScheduled - totalMinimum)),
-      unallocated: round2(Math.max(0, extraPool)),
-      lateFeesAvoided,
-      lateFeeAmountAvoided: round2(lateFeesAvoided * lateFee),
+      unallocated: cashRemaining,
       monthlyPlanAmount,
       debtFreeDate,
       monthsToDebtFree: planProjection.paidOff ? planProjection.months : null,

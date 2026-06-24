@@ -40,8 +40,17 @@ app.disable('x-powered-by');
 app.use(helmet());
 
 // --- CORS ---
+// Allowlist of origins (from CORS_ORIGIN). In development we reflect ANY origin
+// so a frontend on any localhost port works without reconfiguration; in
+// production we enforce the allowlist (or allow all only if explicitly "*").
+const allowList = env.CORS_ORIGIN === '*' ? null : env.CORS_ORIGIN.split(',').map((s) => s.trim());
 const corsOptions = {
-  origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(',').map((s) => s.trim()),
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // non-browser / same-origin / curl
+    if (!env.isProduction) return cb(null, true); // dev: reflect any origin
+    if (!allowList) return cb(null, true); // CORS_ORIGIN="*"
+    return cb(null, allowList.includes(origin)); // prod: enforce allowlist
+  },
   credentials: true,
 };
 app.use(cors(corsOptions));

@@ -13,7 +13,7 @@ router.post(
   validateBody({
     name: { type: 'string', required: true, min: 1, max: 120 },
     email: { type: 'email', required: true },
-    password: { type: 'string', required: true, min: 6, max: 128 },
+    password: { type: 'string', required: true, min: 8, max: 128 },
   }),
   signup
 );

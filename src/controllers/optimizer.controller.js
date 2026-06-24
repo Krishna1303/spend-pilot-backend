@@ -8,15 +8,18 @@ const { optimizePayments } = require('../services/optimizer.service');
 const { buildRescuePlan } = require('../services/rescue.service');
 const { simulate } = require('../services/simulate.service');
 const { evaluateTransfer } = require('../services/balanceTransfer.service');
+const { narrate } = require('../services/aiExplanation.service');
 
 /**
  * POST /api/optimizer/recommend
- * Body: { cards?, maxPayment }
+ * Body: { cards?, maxPayment, explain? }
  * If `cards` is omitted, the user's stored CREDIT cards are used (debit cards
- * carry no APR/debt and are excluded from the payment plan).
+ * carry no APR/debt and are excluded from the payment plan). Pass `explain: true`
+ * to get the plain-English AI explanation in the same response, in sync with the
+ * plan (so the frontend never has to stitch two calls together).
  */
 const recommend = asyncHandler(async (req, res) => {
-  const { maxPayment } = req.body;
+  const { maxPayment, explain } = req.body;
   let cards = req.body.cards;
 
   if (!Array.isArray(cards) || cards.length === 0) {
@@ -40,24 +43,34 @@ const recommend = asyncHandler(async (req, res) => {
     warning: result.warning,
   }).catch(() => {});
 
-  res.json({
+  const response = {
     strategy: result.strategy,
     plan: result.plan,
     riskScores: result.riskScores,
     warning: result.warning,
     totalMinimum: result.totalMinimum,
     remaining: result.remaining,
-  });
+  };
+
+  if (explain) {
+    const ex = await narrate({ kind: 'optimizer', payload: result, cards });
+    response.explanation = ex.explanation;
+    response.explanationSource = ex.source;
+  }
+
+  res.json(response);
 });
 
 /**
  * POST /api/optimizer/rescue
- * Body: { paycheckDate, paycheckAmount, cashBuffer?, currentCash?, lateFeePerCard?, cards? }
+ * Body: { paycheckDate, paycheckAmount, cashBuffer?, currentCash?, lateFeePerCard?,
+ *         cards?, explain? }
  * Produces a date-by-date Payday Rescue Plan. Uses the user's stored credit
- * cards when `cards` is omitted.
+ * cards when `cards` is omitted. Pass `explain: true` for an in-sync AI
+ * explanation in the same response.
  */
 const rescue = asyncHandler(async (req, res) => {
-  const { paycheckDate, paycheckAmount, cashBuffer, currentCash, lateFeePerCard } = req.body;
+  const { paycheckDate, paycheckAmount, cashBuffer, currentCash, lateFeePerCard, explain } = req.body;
   let cards = req.body.cards;
 
   if (!Array.isArray(cards) || cards.length === 0) {
@@ -74,6 +87,12 @@ const rescue = asyncHandler(async (req, res) => {
     currentCash,
     lateFeePerCard,
   });
+
+  if (explain) {
+    const ex = await narrate({ kind: 'rescue', payload: plan, cards });
+    plan.explanation = ex.explanation;
+    plan.explanationSource = ex.source;
+  }
 
   res.json(plan);
 });

@@ -125,11 +125,19 @@ All under `/optimizer`, all `POST`, all `user` auth. Each uses the user's stored
 **credit** cards when `cards` is omitted.
 
 ### 6a. Recommend (allocate a payment)
-`POST /optimizer/recommend` · body `{ maxPayment, cards? }`
+`POST /optimizer/recommend` · body `{ maxPayment, cards?, explain? }`
 → `{ strategy, plan: [{ cardName, recommendedPayment, reason, ... }], riskScores, warning, totalMinimum, remaining }`
 
+- **`plan[].recommendedPayment`** is the amount to pay each card — render this as the
+  "recommended payment plan" (not `minimumPayment`).
+- Pass **`explain: true`** to also get `explanation` (plain-English prose) and
+  `explanationSource` (`"ai"|"fallback"`) in the **same response**, guaranteed in
+  sync with the plan — so you don't have to call `/ai/explain` separately or risk
+  the text and numbers drifting apart.
+
 ### 6b. Payday Rescue Plan (dated plan)
-`POST /optimizer/rescue` · body `{ paycheckDate, paycheckAmount, cashBuffer?, currentCash?, lateFeePerCard?, cards? }`
+`POST /optimizer/rescue` · body `{ paycheckDate, paycheckAmount, cashBuffer?, currentCash?, lateFeePerCard?, cards?, explain? }`
+(`explain: true` adds `explanation` + `explanationSource` in sync with the plan.)
 → `{ strategy, actions: [{ cardName, amount, date, when: "today"|"payday", type, reason }], warnings, summary: { lateFeesAvoided, lateFeeAmountAvoided, debtFreeDate, monthsToDebtFree, interestSavedVsMinimums, monthsSavedVsMinimums, ... } }`
 
 ### 6c. What-if simulator

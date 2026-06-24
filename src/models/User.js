@@ -3,6 +3,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const { env } = require('../config/env');
+const { encrypt, decryptSafe } = require('../utils/crypto');
 
 const userSchema = new mongoose.Schema(
   {
@@ -22,8 +23,14 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user', index: true },
     subscriptionPlan: { type: String, enum: ['free', 'pro', 'enterprise'], default: 'free' },
 
-    // Stored only for the Plaid sandbox demo; never real bank credentials.
-    plaidAccessToken: { type: String, select: false },
+    // Bank access token — encrypted at rest (AES-GCM) via transparent get/set,
+    // never selected by default, and stripped from JSON responses.
+    plaidAccessToken: {
+      type: String,
+      select: false,
+      set: (v) => (v == null ? v : encrypt(v)),
+      get: (v) => (v == null ? v : decryptSafe(v)),
+    },
     plaidItemId: { type: String, select: false },
 
     // CRM TOTP second factor. Secret is AES-GCM encrypted at rest.

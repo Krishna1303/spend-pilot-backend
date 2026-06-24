@@ -2,8 +2,24 @@
 
 const rateLimit = require('express-rate-limit');
 const { env } = require('../config/env');
+const logger = require('../config/logger');
 
 const windowMs = env.RATE_LIMIT_WINDOW_MIN * 60 * 1000;
+
+/**
+ * NOTE (serverless): the default store is in-memory and therefore PER instance.
+ * On Vercel/Lambda, limits are not shared across concurrent instances and reset
+ * on cold start, so this is best-effort only. For real production protection,
+ * plug in a shared store (e.g. `rate-limit-redis` + Upstash/Redis) by passing a
+ * `store` to rateLimit() here, keyed off REDIS_URL / UPSTASH_REDIS_REST_URL.
+ */
+const hasSharedStore = !!(process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL);
+if (env.isProduction && !hasSharedStore) {
+  logger.warn(
+    'Rate limiting is using an in-memory store — NOT shared across serverless instances. ' +
+    'Configure a Redis/Upstash store for effective production rate limiting.'
+  );
+}
 
 function build(max, message) {
   return rateLimit({
