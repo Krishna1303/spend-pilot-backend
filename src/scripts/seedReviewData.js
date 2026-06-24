@@ -18,7 +18,7 @@ const OptimizerRecommendation = require('../models/OptimizerRecommendation');
 const { optimizePayments } = require('../services/optimizer.service');
 const logger = require('../config/logger');
 
-const REVIEWER = { name: 'Review User', email: 'reviewer@spendpilot.app', password: 'Review1234!' };
+const REVIEWER = { name: 'Review User', email: 'reviewer@thespendpilot.com', password: 'Review1234!' };
 
 const daysFromNow = (n) => new Date(Date.now() + n * 86400000);
 const daysAgo = (n) => new Date(Date.now() - n * 86400000);
